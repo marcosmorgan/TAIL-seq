@@ -1,0 +1,73 @@
+---
+title: "Plot Fig. 1d"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(knitr)
+library(gridExtra)
+library(extrafont)                               
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load corrected values
+```{r, message=FALSE, warning=FALSE}
+view <- read.csv("views/final_figures/figure_1_d.csv", stringsAsFactors=FALSE) %>% select(-X)
+```
+
+Select what to plot
+```{r, message=FALSE, warning=FALSE}
+plotting      <- subset(view, treatment == "ctrl" & mod %in% c("T", "TT", "TTT", "TTTT", "TTTTT"))[,c("cell", "sample", "mod", "freq")] 
+plotting$cell <- factor(plotting$cell, levels = c("liver","bm","mefs","escs", "gv"))
+colors        <- c(gray(c(0.2,0.3,0.4,0.6)), "red")
+topValue      <- 90
+breaks        <- 10
+thesize       <- 0.468
+```
+
+Generate plot
+```{r, message=FALSE, warning=FALSE}
+
+plot <- ggplot(plotting, aes(x = factor(mod), y = freq, fill = factor(cell), width=.5)) +
+          geom_dotplot(binaxis = "y", stackdir = "center", binwidth = 0.01*topValue, position=position_dodge(width=0.9)) +
+          stat_summary_bin(aes(y = freq, colors = "black"), fun.y = "mean", geom = "bar", position = position_dodge(width=0.9),  width=1) +
+          stat_summary(fun.y = mean, fun.ymin = min, fun.ymax = max, position=position_dodge(width=0.9), color = "black", size = 0.5, shape= ".") +
+          
+          scale_fill_manual(values= colors) + 
+          theme_classic(base_size = 10) +
+          coord_cartesian(ylim = c(0, topValue)) +
+          scale_y_continuous(breaks=seq(0,topValue, breaks), expand = c(0, 0)) +
+          scale_x_discrete(expand=c(0.01, 0.01)) +
+          theme(legend.position =  c(.8, .8), axis.title.x=element_blank(),
+              text=element_text(family="Arial", size=8), 
+              axis.line.y = element_line(size = thesize),
+              axis.line.x = element_line(size = thesize)) +
+          ylab("% of uridylated transcripts")
+
+plot
+```
+
+Saving the plot
+```{r, message=FALSE, warning=FALSE}
+ggsave("plots/final_figures/figure_1_d.pdf", plot, width=90, height=65, units = "mm", useDingbats=FALSE)
+```
+
+```{r}
+
+```
+

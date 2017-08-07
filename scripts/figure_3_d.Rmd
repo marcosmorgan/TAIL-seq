@@ -1,0 +1,141 @@
+---
+title: "Source data Fig. 3d and Legend Fig. 3d"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load library
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(gridExtra)
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load functions
+```{r, message=FALSE, warning=FALSE}
+source("scripts/figures_helper_functions.R")
+```
+
+Read table
+```{r, message=FALSE, warning=FALSE}
+
+if(!(c("table") %in% ls())){
+  
+  #Loading table
+  table <- read.csv("views/table/TAIL-seq_Morganetal2017.csv", stringsAsFactors=FALSE)
+  table <- table %>% rename(palen = poly_a_tail_length, cell = cell_tissue, mod = modification, short = short_tail, 
+                            type = modification_type, type_short = modification_type_short, gv = gv_upregulated) %>% 
+                     rowwise() %>% mutate(cell      = rename_cell(cell)) %>%
+                     rowwise() %>% mutate(treatment = rename_treatment(cell, treatment)) %>% ungroup()
+  
+} 
+
+head(table)
+```
+
+View of frequency changes
+```{r, message=FALSE, warning=FALSE}
+
+reads_stats   <- table %>% filter(cell == "gv") %>%
+                    group_by(gv, treatment, sample, short)       %>% mutate(all= n())        %>% ungroup() %>%
+                    group_by(gv, treatment, sample, short, type) %>% mutate(mod_count = n()) %>% ungroup() %>%
+                    rowwise() %>% mutate(frequency = 100*mod_count/all)                                    %>%
+                    select(gv, treatment, sample, short, type, frequency) %>% unique()           
+
+
+reads_stats   <- missing_oligo(reads_stats)
+                                             
+reads_stats   <- reads_stats %>% group_by(gv, treatment, short, type) %>%
+                    mutate(mean = mean(frequency), sd = sd(frequency), frequencies=list(frequency)) %>% ungroup()
+
+show(reads_stats)
+```
+
+Calculate t-test
+```{r, message=FALSE, warning=FALSE}
+reads_stats_t   <- reads_stats %>% select(gv, treatment, short, type, frequencies) %>% unique() %>% spread(treatment, frequencies)
+
+reads_stats_t   <- reads_stats_t %>% rowwise() %>% 
+                                     mutate( pval = ifelse(length(dcko) > 1  & length(ctrl) > 1, 
+                                                            trypval(dcko, ctrl), NA))   %>%
+                                     mutate( star = ifelse(!is.na(pval), sig(pval),NA)) %>%
+                                     select(gv, short, type, pval, star) 
+
+reads_stats   <- full_join(reads_stats, reads_stats_t) %>% select(-frequencies)
+show(reads_stats)
+```
+
+Calculate fold change
+```{r, message=FALSE, warning=FALSE}
+reads_stats_f   <- reads_stats %>% select(gv, treatment, short, type, mean) %>% unique() %>% spread(treatment, mean)
+reads_stats_f   <- reads_stats_f %>% rowwise() %>% 
+                                     mutate(change = ifelse(!is.na(ctrl)  & !is.na(dcko), 
+                                                            ifelse((ctrl/dcko) > 1, ctrl/dcko, -dcko/ctrl), NA)) %>%
+                                     select(gv, short, type, change) 
+
+reads_stats    <- left_join(reads_stats, reads_stats_f, by = c("gv", "short", "type"))
+reads_stats    <- subset(reads_stats, !is.na(reads_stats$change))
+show(reads_stats)
+
+reads_stats <- reads_stats %>% rowwise() %>% mutate(label   = paste(as.character(signif(change, digits = 2)), "X" , "\n", star, sep =""),
+                                                    mean_sd = mean + sd)
+```
+
+Saving source data
+```{r, message=FALSE, warning=FALSE}
+write.csv(reads_stats %>% filter(short == "yes" & type == "oligoT") , "views/final_figures/figure_3_d.csv")
+```
+
+Figure legend
+```{r, message=FALSE, warning=FALSE}
+reads <- table %>% filter(cell == "gv")
+
+transcripts     <- reads %>% select(  gv, treatment, type, short) %>% 
+                             group_by(gv, treatment, type, short) %>% mutate(trans = n())      %>% ungroup() %>%
+                             group_by(gv, treatment, short)       %>% mutate(trans_all = n())  %>% ungroup() %>%
+                             unique()
+
+genes          <- reads %>% select(gv, treatment, type, short, gene)  %>% unique() %>%  select(-gene)   %>%        
+                             group_by(gv, treatment, type, short)           %>% mutate(gen     = n()) %>% ungroup() %>%
+                             unique()
+
+genes_all      <- reads %>% select(gv, treatment, short, gene)        %>% unique() %>%  select(-gene)   %>%              
+                             group_by(gv, treatment, short)                 %>% mutate(gen_all = n()) %>% ungroup() %>%
+                             unique()
+
+genes          <- genes %>% left_join(genes_all)
+
+legend         <- full_join(transcripts, genes)
+
+legend         <- missing_oligo_legend(legend) %>% filter(type == "oligoT") %>% arrange(type, gv, short, treatment) %>%
+                             filter(short == "yes") %>% select(type, gv, treatment, trans, gen) %>% arrange(type, gv, treatment) %>%
+                             rename(Transcripts = trans, Genes = gen)
+
+show(legend)
+```
+
+Save legend Fig. 3d
+```{r, message=FALSE, warning=FALSE}
+pdf(file = "plots/final_figures/figure_3_d_legend.pdf")
+grid.table(legend) 
+dev.off()
+```
+
+```{r}
+
+```
+
+
+

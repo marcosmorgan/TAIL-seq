@@ -1,0 +1,8 @@
+plots/final_figures/*.pdf
+views/final_figures/*.csv
+views/table/TAIL-seq_Morganetal2017.csv
+*Rhistory*
+*.html*
+*.pdf
+.Rproj.user
+.DS_Store

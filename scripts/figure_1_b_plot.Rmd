@@ -1,0 +1,76 @@
+---
+title: "Plot Fig. 1b"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(gridExtra)
+library(extrafont)                              
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load values
+```{r, message=FALSE, warning=FALSE}
+view <- read.csv("views/final_figures/figure_1_b.csv", stringsAsFactors=FALSE) %>% select(-X)
+```
+
+Plot frequency with error bars
+```{r, message=FALSE, warning=FALSE}
+plot_error_bars <- function(data_frame){
+    
+    thesize         <- 0.468
+    data_frame$cell <- factor(data_frame$cell, levels = c("liver","bm","mefs","escs", "gv")) 
+    colors          <- c(gray(c(0.2,0.3,0.4,0.6)), "red")
+    
+    plot <- ggplot(data_frame, aes(palen, frequency*100, colour = factor(cell))) +
+                
+                stat_summary(fun.y = mean, fun.ymin = min, fun.ymax = max, size = 0.1, geom="pointrange") +
+                geom_vline(xintercept = 30, linetype = "longdash") +
+        
+                coord_cartesian(ylim = c(0, 4), xlim = c(0,80)) +
+                scale_x_continuous(limits = c(0, 100), breaks = seq(0, 80, 20), expand = c(0, 0)) + 
+                scale_y_continuous(breaks = seq(0, 4, 0.4), expand = c(0, 0)) +
+            
+                xlab('Poly(A) length (nucleotides)') + 
+                ylab("Frequency of transcripts")     +
+  
+                scale_color_manual(values=colors) +
+            
+                theme_classic(base_size = 10) +
+                theme(legend.position = c(.2, .6), legend.title = element_blank(),
+                    text=element_text(family="Arial", size=8), 
+                    axis.line.x = element_line(size = thesize), 
+                    axis.line.y = element_line(size = thesize)) 
+
+    return(plot)
+    }
+```
+
+Plot and save
+```{r, message=FALSE, warning=FALSE}
+to_plot <- view  %>% filter(palen < 79 & treatment == "ctrl") 
+plot    <- plot_error_bars(to_plot)
+plot
+ggsave("plots/final_figures/figure_1_b.pdf", plot, width=60, height=75, units = "mm", useDingbats=FALSE)
+rm(to_plot, view, plot)
+```
+
+```{r}
+
+```
+

@@ -1,0 +1,116 @@
+---
+title: "Source data Fig. 3c and Legend Fig. 3c"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load library
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(gridExtra)
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load functions
+```{r, message=FALSE, warning=FALSE}
+source("scripts/figures_helper_functions.R")
+```
+
+Read table
+```{r, message=FALSE, warning=FALSE}
+
+if(!(c("table") %in% ls())){
+  
+  #Loading table
+  table <- read.csv("views/table/TAIL-seq_Morganetal2017.csv", stringsAsFactors=FALSE)
+  table <- table %>% rename(palen = poly_a_tail_length, cell = cell_tissue, mod = modification, short = short_tail, 
+                            type = modification_type, type_short = modification_type_short, gv = gv_upregulated) %>% 
+                     rowwise() %>% mutate(cell      = rename_cell(cell)) %>%
+                     rowwise() %>% mutate(treatment = rename_treatment(cell, treatment)) %>% ungroup()
+  
+} 
+
+head(table)
+```
+
+Create view
+```{r, message=FALSE, warning=FALSE}
+list <- table %>% filter(cell == "gv" & palen < 79) %>% select(palen, treatment, gv, sample) %>%
+                 group_by(treatment, sample, gv, palen)        %>% summarise(count = n())    %>% ungroup() %>%
+                 mutate(count_corrected = correct_recovery(palen)*count)                     %>% 
+                 group_by(treatment, sample, gv) %>% mutate(count_palen_corrected = sum(count_corrected))  %>% ungroup() %>%
+                 rowwise() %>% mutate(frequency = count_corrected/count_palen_corrected)     %>% unique()  %>%
+                 select(treatment, sample, gv, palen, frequency)
+
+head(list)
+```
+
+Save source data
+```{r}
+write.csv(list, "views/final_figures/figure_3_c.csv")
+```
+
+Create table with adjusted frequencies
+```{r, message=FALSE, warning=FALSE}
+list <- table %>% filter(cell == "gv") 
+
+list <- list %>% select(palen, treatment, gv)   %>% 
+                 mutate(palen = ifelse(palen < 79, palen, 79)) %>%
+                 group_by(treatment, gv, palen) %>% summarise(count = n()) %>% ungroup()  %>%
+                 mutate(count_corrected = correct_recovery(palen)*count)   %>% 
+                 group_by(treatment, gv) %>% mutate(count_palen_corrected = sum(count_corrected)) %>% ungroup() %>%
+                 rowwise() %>% mutate(frequency = count_corrected/count_palen_corrected)          %>% unique()   %>%
+                 filter(palen == 79) %>% mutate(frequency = round(100*(1 - frequency), digits=0)) %>%
+                 select(treatment, gv, frequency)
+                 
+show(list)
+```
+
+Give legend values
+```{r, message=FALSE, warning=FALSE}
+reads          <- table %>% filter(cell == "gv") 
+
+transcripts    <- reads %>% select(treatment, gv) %>% group_by(treatment, gv) %>% summarise(trans = n()) 
+genes          <- reads %>% select(treatment, gv, gene) %>% unique() %>% select(treatment, gv)  %>% group_by(treatment, gv) %>% summarise(gene = n())
+legend         <- full_join(transcripts, genes) 
+
+show(legend)
+
+reads          <- table %>% filter(cell == "gv" & palen < 79) 
+
+transcripts    <- reads %>% select(treatment, gv) %>% group_by(treatment, gv) %>% summarise(trans_80 = n()) 
+genes          <- reads %>% select(treatment, gv, gene) %>% unique() %>% select(treatment, gv)  %>% group_by(treatment, gv) %>% summarise(gene_80 = n())
+legend_80      <- full_join(transcripts, genes) 
+
+show(legend_80)
+
+legend_80      <- full_join(legend_80, legend) %>% ungroup() %>% ungroup() %>%
+                         select(-trans, -gene) %>% rename(Transcripts = trans_80, Genes = gene_80)
+show(legend_80)
+```
+
+Save legend Fig. 3c
+```{r, message=FALSE, warning=FALSE}
+final_list <- legend_80 %>% left_join(list) 
+pdf(file = "plots/final_figures/legend_figure_3c.pdf")
+grid.table(final_list) 
+dev.off()
+show(final_list)
+```
+
+```{r}
+
+```
+

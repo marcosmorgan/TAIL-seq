@@ -1,0 +1,93 @@
+---
+title: "Plot Fig. 4a"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(knitr)
+library(gridExtra)
+library(extrafont)                              
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load source data
+```{r, message=FALSE, warning=FALSE}
+view <- read.csv("views/final_figures/figure_4_a.csv", stringsAsFactors=FALSE) %>% select(-X)
+```
+
+Function used for plotting
+```{r, message=FALSE, warning=FALSE}
+plot_error_bars_treatment <- function(data_frame){
+
+    thesize            <- 0.468
+    data_frame$treatment  <- factor(data_frame$treatment, levels = c("ctrl", "dcko"))
+    colors             <- c("black", "red")
+
+    plot <- ggplot(data_frame, aes(palen, frequency*100, colour = factor(treatment))) +
+  
+                stat_summary(fun.y = mean, fun.ymin = min, fun.ymax = max, size = 0.1, alpha=0.5, geom="pointrange") +
+            
+                coord_cartesian(ylim = c(0, 4), xlim = c(0,80)) +
+            
+                scale_x_continuous(limits = c(0, 100), breaks = seq(0, 80, 20), expand = c(0, 0)) + 
+                scale_y_continuous(breaks = seq(0, 4, 0.4), expand = c(0, 0)) +
+            
+                xlab('Poly(A) length (nucleotides)') + 
+                ylab("Frequency of transcripts") +
+  
+                geom_vline(xintercept = 30, linetype = "longdash") +
+                scale_color_manual(values=colors) +
+            
+                theme_classic(base_size = 10) +
+                theme(legend.position = c(.2, .6), legend.title = element_blank(),
+                    text=element_text(family="Arial", size=8), 
+                    axis.line.x = element_line(size = thesize), 
+                    axis.line.y = element_line(size = thesize)) 
+
+    return(plot)
+
+    }
+```
+
+Save Fig. 4a
+```{r, message=FALSE, warning=FALSE}
+to_plot <- view  %>% filter(palen < 79 & cell == "liver") 
+plot <- plot_error_bars_treatment(to_plot)
+plot
+ggsave("plots/final_figures/figure_4_a_a.pdf", plot, width=44, height=44, units = "mm", useDingbats=FALSE)
+
+to_plot <- view  %>% filter(palen < 79 & cell == "bm") 
+plot <- plot_error_bars_treatment(to_plot)
+plot
+ggsave("plots/final_figures/figure_4_a_b.pdf", plot, width=44, height=44, units = "mm", useDingbats=FALSE)
+
+to_plot <- view  %>% filter(palen < 79 & cell == "mefs") 
+plot <- plot_error_bars_treatment(to_plot)
+plot
+ggsave("plots/final_figures/figure_4_a_c.pdf", plot, width=44, height=44, units = "mm", useDingbats=FALSE)
+
+to_plot <- view  %>% filter(palen < 79 & cell == "escs") 
+plot <- plot_error_bars_treatment(to_plot)
+plot
+ggsave("plots/final_figures/figure_4_a_d.pdf", plot, width=44, height=44, units = "mm", useDingbats=FALSE)
+```
+
+```{r}
+
+```
+

@@ -1,0 +1,81 @@
+---
+title: "Plot Fig. 3c"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(extrafont)                               
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load source data
+```{r}
+view <- read.csv("views/final_figures/figure_3_c.csv", stringsAsFactors=FALSE) %>% select(-X)
+```
+
+Function to generate plots
+```{r}
+
+do_plot_treatment <- function(to_plot){
+
+    thesize         <- 0.468
+    to_plot$gv    <- factor(to_plot$gv, levels = c("no", "yes"))
+    colors          <- c("black", "red")
+
+    plot <- ggplot(to_plot, aes(palen, frequency*100, colour = factor(gv))) +
+  
+                stat_summary(fun.y = mean, fun.ymin = min, fun.ymax = max, size = 0.1, geom="pointrange") +
+            
+                coord_cartesian(ylim = c(0, 4.5), xlim = c(-1,80)) +
+            
+                scale_x_continuous(limits = c(0, 100), breaks = seq(0, 80, 20), expand = c(0, 0)) + 
+                scale_y_continuous(breaks = seq(0, 5, 0.5), expand = c(0, 0)) +
+            
+                xlab('Poly(A) length (nucleotides)') + 
+                ylab("Frequency of transcripts")     +
+  
+                geom_vline(xintercept = 30, linetype = "longdash") +
+                scale_color_manual(values=colors) +
+            
+                theme_classic(base_size = 10) + 
+                theme(legend.position = c(.2, .6), legend.title = element_blank(),
+                    text=element_text(family="Arial", size=8), 
+                    axis.line.x = element_line(size = thesize), 
+                    axis.line.y = element_line(size = thesize)) 
+
+  return(plot)
+}
+```
+
+Generate and save plots Fig. 3c
+```{r}
+to_plot <- view  %>% filter(palen < 79) %>% filter(treatment == "ctrl") 
+plot <- do_plot_treatment(to_plot)
+ggsave("plots/final_figures/figure_3_c_right.pdf", plot, width=55, height=65, units = "mm", useDingbats=FALSE)
+plot 
+
+to_plot <- view  %>% filter(palen < 79) %>% filter(treatment == "dcko") 
+plot <- do_plot_treatment(to_plot)
+ggsave("plots/final_figures/figure_3_c_left.pdf", plot, width=55, height=65, units = "mm", useDingbats=FALSE)
+plot 
+```
+
+```{r}
+
+```
+

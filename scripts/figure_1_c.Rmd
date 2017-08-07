@@ -1,0 +1,97 @@
+---
+title: "Source data Fig. 1c"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load library
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(ggplot2)
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load helper functions
+```{r, message=FALSE, warning=FALSE}
+source("scripts/figures_helper_functions.R")
+```
+
+Read table
+```{r, message=FALSE, warning=FALSE}
+
+if(!(c("table") %in% ls())){
+  
+  #Loading table
+  table <- read.csv("views/table/TAIL-seq_Morganetal2017.csv", stringsAsFactors=FALSE)
+  table <- table %>% rename(palen = poly_a_tail_length, cell = cell_tissue, mod = modification, short = short_tail, 
+                            type = modification_type, type_short = modification_type_short, gv = gv_upregulated) %>% 
+                     rowwise() %>% mutate(cell      = rename_cell(cell)) %>%
+                     rowwise() %>% mutate(treatment = rename_treatment(cell, treatment)) %>% ungroup()
+  
+} 
+
+head(table)
+```
+
+View frequency of modifications, Fig. 1c
+```{r, message=FALSE, warning=FALSE}
+reads <- table 
+
+view  <- reads %>% group_by(cell, treatment, sample, type_short) %>% mutate(count = n()) %>% ungroup() %>%
+                   group_by(cell, treatment, sample)             %>% mutate(total = n()) %>% ungroup() %>%
+                   rowwise() %>% mutate(freq = count*100/total)  %>% select(cell, treatment, sample, type_short, freq) %>% unique()
+
+show(view)
+
+write.csv(view, "views/final_figures/figure_1_c.csv")
+```
+
+Create Fig. 1c legend
+```{r, message=FALSE, warning=FALSE}
+reads           <- table  
+
+transcripts     <- reads %>% select(cell, treatment, type_short)   %>% 
+                             group_by(cell, treatment, type_short) %>% mutate(trans = n())      %>% ungroup() %>%
+                             group_by(cell, treatment)             %>% mutate(trans_all = n())  %>% ungroup() %>%
+                             unique()
+
+genes          <- reads %>% select(cell, treatment, type_short, gene) %>% unique() %>% select(cell, treatment, type_short) %>%
+                             group_by(cell, treatment, type_short)    %>% mutate(gen     = n()) %>% ungroup() %>%
+                             group_by(cell, treatment)                %>% mutate(gen_all = n()) %>% ungroup() %>%
+                             unique()
+
+legend         <- full_join(transcripts, genes) %>% filter(treatment == "ctrl" & type_short == "T") %>% select(cell, trans, gen) %>%
+                            rename(Transcripts = trans, Genes = gen) %>% 
+                            mutate(cell = factor(cell, levels = c("liver", "bm", "mefs", "escs", "gv"))) %>% arrange(cell) %>%
+                            mutate(print = paste(as.character(Transcripts), "\n(", as.character(Genes), ")", sep=""))
+
+show(legend)
+```
+
+Saving Fig. 1c legend
+```{r, message=FALSE, warning=FALSE}
+print   <- factor(legend$print, levels = legend$print)
+legend  <- as.data.frame(print) %>% mutate(rep = 0)
+plot    <- ggplot(legend, aes(x=print))
+plot
+ggsave("plots/final_figures/figure_1_c_legend.pdf", plot, width=55, height=20, units = "mm", useDingbats=FALSE)
+```
+
+```{r}
+
+```
+
+
+

@@ -1,0 +1,122 @@
+---
+title: "Source data Fig. 1d and Fig. 1e"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load library
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(gridExtra)
+```
+
+Clean the environment
+```{r}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+opts_knit$set(root.dir = "../")
+```
+
+Load helper functions
+```{r}
+source("scripts/figures_helper_functions.R")
+```
+
+Read table
+```{r, message=FALSE, warning=FALSE}
+
+if(!(c("table") %in% ls())){
+  
+  #Loading table
+  table <- read.csv("views/table/TAIL-seq_Morganetal2017.csv", stringsAsFactors=FALSE)
+  table <- table %>% rename(palen = poly_a_tail_length, cell = cell_tissue, mod = modification, short = short_tail, 
+                            type = modification_type, type_short = modification_type_short, gv = gv_upregulated) %>% 
+                     rowwise() %>% mutate(cell      = rename_cell(cell)) %>%
+                     rowwise() %>% mutate(treatment = rename_treatment(cell, treatment)) %>% ungroup()
+  
+} 
+
+head(table)
+```
+
+View of frequency different modifications
+```{r}
+reads           <- table %>% filter(short == "yes") 
+
+table_short <- subset(reads, short == "yes") %>% 
+                          group_by(cell, treatment, sample, type_short, mod) %>% mutate(count = n()) %>%
+                          group_by(cell, treatment, sample, type_short)      %>% mutate(total = n(), freq = count*100/total) %>%
+                          select(cell, treatment, sample, mod, type_short, freq) %>% unique()
+show(table_short)
+```
+
+Add missing TTTT and TTTTT
+```{r}
+table_short_ungrouped <- table_short %>% ungroup()
+added_Ts <- subset(table_short_ungrouped, type_short == "A" | mod %in% c("T", "TT", "TTT", "TTTT", "TTTTT", "TTTTTT", "TTTTTTT"))
+show(added_Ts )
+```
+
+Continue adding missing oligoT
+```{r}
+to_expand <- added_Ts %>% filter(type_short == "A") %>% select(-type_short, -mod, -freq)                                          %>%
+                          mutate(T="T", TT="TT", TTT="TTT", TTTT= "TTTT", TTTTT= "TTTTT", TTTTTT = "TTTTTT", TTTTTTT = "TTTTTTT") %>%
+                          gather(mod, modDup, c(T, TT, TTT, TTTT, TTTTT, TTTTTT, TTTTTTT))                                        %>%
+                          select(-modDup) %>% mutate(type_short = "T") %>% anti_join(added_Ts) %>% mutate()                       %>%
+                          mutate(freq = 0)  %>% bind_rows(added_Ts)    %>% filter(mod %in% c("T", "TT", "TTT", "TTTT", "TTTTT"))
+
+show(to_expand)
+```
+
+Saving view for Fig. 1d
+```{r}
+write.csv(to_expand, "views/final_figures/figure_1_d.csv")
+```
+
+Saving view for Fig. 1e 
+```{r}
+ratio <- to_expand %>% filter(treatment == "ctrl" & mod == "T") %>% select(cell, sample, freq) %>%
+                       mutate(freq = (100-freq)/freq)
+write.csv(ratio, "views/final_figures/figure_1_e.csv")
+```
+
+Create table ED Fig. 2c
+```{r}
+reads           <- table %>% filter(short == "yes") 
+reads           <- reads %>% mutate(cell = factor(cell, levels = c("liver", "bm", "mefs", "escs", "gv")))
+
+transcripts     <- reads %>% select(cell, treatment, mod, type_short)   %>% 
+                             group_by(cell, treatment, mod)  %>% mutate(trans = n())      %>% ungroup() %>%
+                             group_by(cell, treatment)       %>% mutate(trans_all = n())  %>% ungroup() %>%
+                             unique()
+
+genes          <- reads %>% select(cell, treatment, mod, gene, type_short) %>% unique() %>% select(cell, treatment, mod) %>%
+                            group_by(cell, treatment, mod)     %>% mutate(gen     = n()) %>% ungroup() %>%
+                            group_by(cell, treatment)           %>% mutate(gen_all = n()) %>% ungroup() %>%
+                            unique()
+
+legend         <- full_join(transcripts, genes) %>% filter(type_short == "T", treatment == "ctrl") %>% select(-treatment, -type_short) %>%
+                            filter(mod %in% c("T", "TT", "TTT", "TTTT", "TTTTT")) %>% arrange(cell, mod) %>%
+                            rowwise() %>% mutate(Modification = rename_Ts(mod))   %>% 
+                            rowwise() %>% mutate(Cells = rename_cell(cell))          %>% select(-mod, -cell) %>%  
+                            rename(Transcripts = trans, All_transcripts = trans_all, Genes = gen, All_genes = gen_all) %>%
+                            select(Cells, All_transcripts, All_genes, Modification, Transcripts, All_transcripts, Genes)
+
+show(legend)
+```
+
+Save ED figure 2 
+```{r}
+pdf("plots/final_figures/ED_figure_2_d.pdf", height=11, width=8.5)
+grid.table(legend)
+dev.off()
+```
+
+```{r}
+
+```

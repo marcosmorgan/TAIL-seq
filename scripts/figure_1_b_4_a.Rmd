@@ -1,0 +1,126 @@
+---
+title: "Source data Fig. 1b and Fig. 4a"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(gridExtra)
+```
+
+Clean the environment
+```{r}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+opts_knit$set(root.dir = "../")
+```
+
+Load helper functions
+```{r, message=FALSE, warning=FALSE}
+source("scripts/figures_helper_functions.R")
+```
+
+Read table
+```{r, message=FALSE, warning=FALSE}
+
+if(!(c("table") %in% ls())){
+  
+  #Loading table
+  table <- read.csv("views/table/TAIL-seq_Morganetal2017.csv", stringsAsFactors=FALSE)
+  table <- table %>% rename(palen = poly_a_tail_length, cell = cell_tissue, mod = modification, short = short_tail, 
+                            type = modification_type, type_short = modification_type_short, gv = gv_upregulated) %>% 
+                     rowwise() %>% mutate(cell      = rename_cell(cell)) %>%
+                     rowwise() %>% mutate(treatment = rename_treatment(cell, treatment)) %>% ungroup()
+  
+} 
+
+head(table)
+```
+
+Create table with adjusted frequencies
+```{r, message=FALSE, warning=FALSE}
+list <- table
+
+list <- list %>% select(palen, cell, sample, treatment)        %>% filter(palen < 79)        %>%
+                 group_by(cell, sample, treatment, palen)      %>% summarise(count = n())    %>% ungroup()  %>%
+                 mutate(count_corrected = correct_recovery(palen)*count)                     %>% 
+                 group_by(cell, treatment, sample) %>% mutate(count_palen_corrected = sum(count_corrected)) %>% ungroup() %>%
+                 rowwise() %>% mutate(frequency = count_corrected/count_palen_corrected)     %>% unique()   %>%
+                 select(cell, treatment, sample, palen, frequency)
+                 
+head(list)
+```
+
+Save source data Fig. 1b
+```{r, message=FALSE, warning=FALSE}
+source <- list %>% filter(treatment == "ctrl") 
+write.csv(list, "views/final_figures/figure_1_b.csv")
+```
+
+Save source data Fig. 4a
+```{r, message=FALSE, warning=FALSE}
+source <- list %>% filter(cell != "gv") 
+write.csv(list, "views/final_figures/figure_4_a.csv")
+```
+
+Create table with adjusted frequencies of transcripts with short tails
+```{r, message=FALSE, warning=FALSE}
+list <- table
+
+list <- list %>% select(palen, cell, treatment)        %>% 
+                 mutate(palen = ifelse(palen < 79, palen, 79)) %>%
+                 group_by(cell, treatment, palen)      %>% summarise(count = n())    %>% ungroup()  %>%
+                 mutate(count_corrected = correct_recovery(palen)*count)                     %>% 
+                 group_by(cell, treatment) %>% mutate(count_palen_corrected = sum(count_corrected)) %>% ungroup() %>%
+                 rowwise() %>% mutate(frequency = count_corrected/count_palen_corrected)     %>% unique()   %>%
+                 filter(palen == 79) %>% mutate(frequency = round(100*(1 - frequency), digits=0)) %>%
+                 select(cell, treatment, frequency)
+                 
+show(list)
+```
+
+Generate legend Fig. 1b
+```{r, message=FALSE, warning=FALSE}
+reads          <- table 
+
+transcripts    <- reads %>% select(cell, treatment) %>% group_by(cell, treatment) %>% summarise(trans = n()) 
+genes          <- reads %>% select(cell, treatment, gene) %>% unique() %>% select(cell, treatment)  %>% 
+                            group_by(cell, treatment) %>% summarise(gene = n())
+legend         <- full_join(transcripts, genes) 
+
+
+reads          <- table %>% filter(palen < 79) 
+transcripts    <- reads %>% select(cell, treatment) %>% group_by(cell, treatment) %>% summarise(trans_80 = n()) 
+genes          <- reads %>% select(cell, treatment, gene) %>% unique() %>% select(cell, treatment)  %>% 
+                            group_by(cell, treatment) %>% summarise(gene_80 = n())
+legend_80      <- full_join(transcripts, genes) 
+
+legend         <- full_join(legend_80, legend) %>%
+                            select(-trans, -gene) %>% 
+                            rename(Transcripts = trans_80, Genes = gene_80) %>% ungroup() %>%
+                            mutate(cell = factor(cell, levels = c("liver", "bm", "mefs", "escs", "gv"))) %>% 
+                            arrange(cell)
+  
+show(legend)
+```
+
+Save legend Fig. 1b
+```{r, message=FALSE, warning=FALSE}
+final_list <- legend %>% left_join(list) %>% rowwise() %>% mutate(cell = rename_cell(cell))
+pdf(file = "plots/final_figures/legend_figure_1_b.pdf")
+grid.table(final_list) 
+dev.off()
+show(final_list)
+```
+
+```{r}
+
+```
+

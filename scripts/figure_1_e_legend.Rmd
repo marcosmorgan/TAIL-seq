@@ -1,0 +1,81 @@
+---
+title: "Legend Fig. 1e"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load library
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(gridExtra)
+```
+
+Clean the environment
+```{r}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+opts_knit$set(root.dir = "../")
+```
+
+Load functions
+```{r}
+source("scripts/figures_helper_functions.R")
+```
+
+Read table
+```{r, message=FALSE, warning=FALSE}
+
+if(!(c("table") %in% ls())){
+  
+  #Loading table
+  table <- read.csv("views/table/TAIL-seq_Morganetal2017.csv", stringsAsFactors=FALSE)
+  table <- table %>% rename(palen = poly_a_tail_length, cell = cell_tissue, mod = modification, short = short_tail, 
+                            type = modification_type, type_short = modification_type_short, gv = gv_upregulated) %>% 
+                     rowwise() %>% mutate(cell      = rename_cell(cell)) %>%
+                     rowwise() %>% mutate(treatment = rename_treatment(cell, treatment)) %>% ungroup()
+  
+} 
+
+head(table)
+```
+
+Create legend Fig. 1e
+```{r}
+reads           <- table %>% filter(short == "yes") 
+reads           <- reads %>% mutate(cell = factor(cell, levels = c("liver", "bm", "mefs", "escs", "gv")))
+
+transcripts     <- reads %>% select(cell, treatment, type, type_short) %>% 
+                             group_by(cell, treatment, type) %>% mutate(trans = n())      %>% ungroup() %>%
+                             group_by(cell, treatment)       %>% mutate(trans_all = n())  %>% ungroup() %>%
+                             unique()
+
+genes          <- reads %>% select(cell, treatment, type, gene, type_short) %>% unique() %>% select(cell, treatment, type) %>%
+                             group_by(cell, treatment, type) %>% mutate(gen     = n()) %>% ungroup() %>%
+                             group_by(cell, treatment)       %>% mutate(gen_all = n()) %>% ungroup() %>%
+                             unique()
+
+legend         <- full_join(transcripts, genes) %>% filter(type_short == "T", treatment == "ctrl") %>% select(-treatment, -type_short) %>%
+                            filter(type %in% c("monoT", "oligoT")) %>% arrange(type, cell) %>%
+                            rowwise() %>% mutate(Cells = rename_cell(cell))          %>% select(-cell) %>%  
+                            rename(Transcripts = trans, All_transcripts = trans_all, Genes = gen, All_genes = gen_all) %>%
+                            select(type, Cells, Transcripts, Genes)
+
+show(legend)
+```
+
+Save legend Fig. 1e
+```{r}
+pdf(file = "plots/final_figures/figure_1_e_legend.pdf")
+grid.table(legend) 
+dev.off()
+```
+
+```{r}
+
+```
+

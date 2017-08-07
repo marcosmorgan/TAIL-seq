@@ -1,0 +1,91 @@
+---
+title: "Plot Extended Data Fig. 7d"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(gridExtra)
+library(extrafont)                             
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load source data
+```{r, message=FALSE}
+view <- read.csv("views/final_figures/ED_figure_7_d.csv", stringsAsFactors=FALSE) 
+```
+
+Generate plot
+```{r, message=FALSE, warning=FALSE}
+do_plots <- function(topValue, breaks, tails, cells){
+
+  reads <- view
+  reads <- subset(reads, short %in% tails & cell %in% cells) 
+  reads <- reads %>% mutate(cell = factor(cell, levels = cells))
+  constant <- topValue/10
+  thesize = 0.234 
+  
+  graph1 <- ggplot(reads, aes(x = cell, y = frequency, fill = treatment)) +
+    geom_dotplot(binaxis = "y", stackdir = "center", binwidth = 0.03*topValue, position=position_dodge(width=0.9)) +
+    stat_summary_bin(aes(y = frequency, colors = "black"), fun.y = "mean", geom = "bar", width = 0.2, position = position_dodge(width=0.9), colour="black") +
+    stat_summary(fun.y = mean, fun.ymin = min, fun.ymax = max, position=position_dodge(width=0.9), color = "black", size = 0.5, shape= ".") +
+    
+    scale_y_continuous(breaks=seq(0,topValue,breaks), expand = c(0, 0)) +
+    scale_x_discrete(expand = c(0.05, 0.05)) +
+    coord_cartesian(ylim = c(0, topValue)) +
+    scale_fill_manual(values=c("white", "black")) +
+    theme_classic() + 
+    ylab("% of transcripts uridylated") + 
+    theme(strip.background = element_blank(), text=element_text(family="Arial", size=8), plot.margin=unit(c(0.15,0.15,0.15,0.15), "cm"),
+          legend.position = "None",  legend.title=element_blank(),
+          axis.line = element_line(size = thesize),
+          axis.ticks.x=element_blank(),  axis.title.x = element_blank(), 
+          axis.ticks.y=element_line(size = thesize),
+          axis.line.y = element_line(size = thesize),
+          axis.line.x = element_line(size = thesize))  
+
+  j=0
+  for(i in cells){
+    topValue_1 <- max(reads[reads$cell == i,"mean_sd"])
+    graph1 <- graph1 + geom_segment(x=j+0.78, xend=j+1.22, y=topValue_1 + constant, yend=topValue_1 + constant, size = thesize) + 
+      geom_segment(x=j+0.78, xend=j+0.78, y=topValue_1 + constant, yend=topValue_1 + constant/2, size = thesize) + 
+      geom_segment(x=j+1.22, xend=j+1.22, y=topValue_1 + constant, yend=topValue_1 + constant/2, size = thesize) +
+      annotate("text",family="Arial", size=2.7, x=j+1,y=topValue_1 + constant,label= reads[reads$cell == i,"label"][1]) 
+    j =j + 1 
+  }
+  return(graph1)
+}
+```
+
+Save figure
+```{r, message=FALSE, warning=FALSE}
+graph1 <- do_plots(7,1,"yes", c("gv", "liver", "bm", "mefs", "escs"))
+graph2 <- do_plots(2.5,0.5,"no", c("gv", "liver", "bm", "mefs", "escs"))
+graph3 <- do_plots(3,0.5,"all", c("gv", "liver", "bm", "mefs", "escs"))
+
+graphs <- list(graph3, graph1, graph2)
+graphs <- append(graphs, list(ncol=3))
+do.call(grid.arrange, graphs)
+pdf("plots/final_figures/ED_figure_7_d.pdf", width=7, height=2.0, useDingbats=FALSE)
+do.call(grid.arrange, graphs)
+dev.off()
+```
+
+```{r}
+
+```
+

@@ -1,0 +1,84 @@
+---
+title: "Plot Fig. 3e"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(extrafont)                           
+library(knitr)
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Load source data
+```{r, message=FALSE, warning=FALSE}
+view    <- read.csv("views/final_figures/figure_3_e.csv", stringsAsFactors=FALSE)
+```
+
+Generate plot
+```{r, message=FALSE, warning=FALSE}
+histogram_p <- function(topValue, breaks, tails, modif){
+  
+  constant <- topValue/10
+  thesize = 0.234 
+
+  graph1 <- ggplot(view, aes(x = treatment, y = ratio, fill = treatment)) +
+    
+    geom_dotplot(binaxis = "y", stackdir = "center", binwidth = 0.02*topValue, position=position_dodge(width=0.9)) +
+    stat_summary_bin(aes(y = ratio, colors = "black"), fun.y = "mean", geom = "bar", width = 0.2, position = position_dodge(width=0.9), colour="black") +
+    stat_summary(fun.y = mean, fun.ymin = min, fun.ymax = max, position=position_dodge(width=0.9), color = "black", size = 0.5, shape= ".") +
+    
+    scale_y_continuous(breaks=seq(0,topValue,breaks), expand = c(0, 0)) +
+    scale_x_discrete(expand = c(0.05, 0.05)) +
+    coord_cartesian(ylim = c(0, topValue)) +
+    scale_fill_manual(values=c("white", "black")) +
+    theme_classic() + 
+    ylab("ratio of oligo-U/mono-U transcripts") + 
+    theme(strip.background = element_blank(), text=element_text(family="Arial", size=8), plot.margin=unit(c(0.15,0.15,0.15,0.15), "cm"),
+          legend.position = "None",  legend.title=element_blank(),
+          axis.line = element_line(size = thesize),
+          axis.ticks.x=element_blank(),  axis.title.x = element_blank(), 
+          axis.ticks.y=element_line(size = thesize),
+          axis.line.y = element_line(size = thesize),
+          axis.line.x = element_line(size = thesize))  
+  
+  j=0
+  for(i in c("yes")){
+    topValue_1 <- max(view[view$short == i,"mean_sd"])
+    graph1 <- graph1 + 
+      geom_segment(x=j+1, xend=j+2, y=topValue_1 + constant, yend=topValue_1 + constant, size = thesize) +
+      geom_segment(x=j+1, xend=j+1, y=topValue_1 + constant, yend=topValue_1 + constant/2, size = thesize) +
+      geom_segment(x=j+2, xend=j+2, y=topValue_1 + constant, yend=topValue_1 + constant/2, size = thesize) +
+      annotate("text",family="Arial", size=2.7, x=j+1.5,y=topValue_1 + constant, label= view[view$short == i,"label"][1])
+  }
+  return(graph1)
+}
+```
+
+Save Fig. 3e
+```{r, message=FALSE, warning=FALSE}
+graph1 <- histogram_p(1.2, 0.2, c("no"), "monoT")
+graph1
+ggsave("plots/final_figures/figure_3_e.pdf", width = 38, height = 50, units = "mm", useDingbats=FALSE) 
+```
+
+```{r}
+
+```
+
+
+

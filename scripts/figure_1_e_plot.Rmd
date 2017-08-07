@@ -1,0 +1,70 @@
+---
+title: "Plot Fig. 1e"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(knitr)
+library(extrafont)                              
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load source data
+```{r, message=FALSE, warning=FALSE}
+view <- read.csv("views/final_figures/figure_1_e.csv", stringsAsFactors=FALSE)
+```
+
+Select what to plot
+```{r, message=FALSE, warning=FALSE}
+plotting      <- view
+plotting$cell <- factor(plotting$cell, levels = c("liver","bm","mefs","escs", "gv"))
+colors        <- c(gray(c(0.2,0.3,0.4,0.6)), "red")
+topValue      <- 1.2
+breaks        <- 0.2
+thesize       <- 0.468
+```
+
+Generate plot
+```{r, message=FALSE, warning=FALSE}
+
+plot <- ggplot(plotting, aes(x = factor(cell), y = freq, fill = factor(cell), width=.5)) +
+          geom_dotplot(binaxis = "y", stackdir = "center",  binwidth = 0.02*topValue, position=position_dodge(width=0.9)) +
+          stat_summary_bin(aes(y = freq, colors = "black"), fun.y = "mean", geom = "bar", position = position_dodge(width=0.9),  width=1) +
+          stat_summary(fun.y=mean, fun.ymin = min, fun.ymax = max, position=position_dodge(width=0.9), color = "black", size = thesize, shape= ".") +
+          
+          scale_fill_manual(values= colors) + 
+          theme_classic(base_size = 10) +
+          coord_cartesian(ylim = c(0, topValue)) +
+          scale_y_continuous(breaks=seq(0,topValue, breaks), expand = c(0, 0)) +
+          scale_x_discrete(expand=c(0.01, 0.01)) +
+          theme(legend.position = "none", axis.title.x=element_blank(),
+              text=element_text(family="Arial", size=8), 
+              axis.line.y = element_line(size = thesize),
+              axis.line.x = element_line(size = thesize)) +
+          ylab("Ratio of oligo-U/mono-U transcripts")
+
+plot
+```
+
+Saving Fig. 1e
+```{r, message=FALSE, warning=FALSE}
+ggsave("plots/final_figures/figure_1_e.pdf", plot, width=48, height=65, units = "mm", useDingbats=FALSE)
+```
+
+```{r}
+
+```
+

@@ -1,0 +1,93 @@
+---
+title: "Source data Fig. 3e"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load library
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(knitr)
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load helper functions
+```{r, message=FALSE, warning=FALSE}
+source("scripts/figures_helper_functions.R")
+```
+
+Read table
+```{r, message=FALSE, warning=FALSE}
+
+if(!(c("table") %in% ls())){
+  
+  #Loading table
+  table <- read.csv("views/table/TAIL-seq_Morganetal2017.csv", stringsAsFactors=FALSE)
+  table <- table %>% rename(palen = poly_a_tail_length, cell = cell_tissue, mod = modification, short = short_tail, 
+                            type = modification_type, type_short = modification_type_short, gv = gv_upregulated) %>% 
+                     rowwise() %>% mutate(cell      = rename_cell(cell)) %>%
+                     rowwise() %>% mutate(treatment = rename_treatment(cell, treatment)) %>% ungroup()
+  
+} 
+
+head(table)
+```
+
+Generate source data
+```{r}
+
+reads_stats   <- table %>% filter(cell == "gv" & type_short == "T") %>% select(accession, treatment, sample, short, type)    %>%
+                    group_by( treatment, sample, short, type)    %>% mutate(count= n())  %>% ungroup() %>% select(-accession) %>%
+                    unique() %>% spread(type, count) %>% mutate(oligoT = ifelse(is.na(oligoT), 0, oligoT)) %>%
+                    mutate(ratio = oligoT/monoT) %>% select(-monoT, -oligoT)
+                    
+reads_stats   <- reads_stats %>% group_by( treatment, short) %>%
+                    mutate(mean = mean(ratio), sd = sd(ratio), frequencies=list(ratio)) %>% ungroup() %>% 
+                    unique()
+
+show(reads_stats)
+
+reads_stats_t   <- reads_stats %>% select( treatment, short, frequencies) %>% unique() %>% spread(treatment, frequencies)
+
+reads_stats_t   <- reads_stats_t %>% rowwise() %>% 
+                                     mutate( pval = ifelse(length(dcko) > 1  & length(ctrl) > 1, 
+                                                            trypval(dcko, ctrl), NA))   %>%
+                                     mutate( star = ifelse(!is.na(pval), sig(pval),NA)) %>%
+                                     select( short, pval, star) 
+
+reads_stats   <- full_join(reads_stats, reads_stats_t) %>% select(-frequencies)
+show(reads_stats)
+
+reads_stats_f   <- reads_stats %>% select( treatment, short, mean) %>% unique() %>% spread(treatment, mean)
+reads_stats_f   <- reads_stats_f %>% rowwise() %>% 
+                                     mutate(change = ifelse(!is.na(ctrl)  & !is.na(dcko), 
+                                                            ifelse((ctrl/dcko) < 1, dcko/ctrl, -ctrl/dcko), NA)) %>%
+                                     select( short, change) 
+
+reads_stats    <- left_join(reads_stats, reads_stats_f, by = c("short")) %>% arrange(short,  treatment)
+reads_stats_   <- subset(reads_stats, !is.na(reads_stats$change)) 
+show(reads_stats)
+```
+
+Saving source data Fig. 3e
+```{r}
+reads_stats <- reads_stats %>% rowwise() %>% mutate(label   = paste(as.character(signif(change, digits = 2)), "X" , "\n", star, sep =""), mean_sd = mean + sd) %>% 
+                               filter(short == "yes")
+write.csv(reads_stats, "views/final_figures/figure_3_e.csv")
+```
+
+```{r}
+
+```
+

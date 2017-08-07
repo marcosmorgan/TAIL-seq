@@ -1,0 +1,132 @@
+---
+title: "Extended Data Fig. 7a"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load library
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(gridExtra)
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = "../")
+```
+
+Load helper functions
+```{r, message=FALSE, warning=FALSE}
+source("scripts/figures_helper_functions.R")
+```
+
+Read table
+```{r, message=FALSE, warning=FALSE}
+
+if(!(c("table") %in% ls())){
+  
+  #Loading table
+  table <- read.csv("views/table/TAIL-seq_Morganetal2017.csv", stringsAsFactors=FALSE)
+  table <- table %>% rename(palen = poly_a_tail_length, cell = cell_tissue, mod = modification, short = short_tail, 
+                            type = modification_type, type_short = modification_type_short, gv = gv_upregulated) %>% 
+                     rowwise() %>% mutate(cell      = rename_cell(cell)) %>%
+                     rowwise() %>% mutate(treatment = rename_treatment(cell, treatment)) %>% ungroup()
+  
+} 
+
+head(table)
+```
+
+Create figure 
+```{r, message=FALSE, warning=FALSE}
+reads <- table %>% filter(cell == "gv")
+
+transcripts     <- reads %>% select(  gv, treatment, type, short) %>% 
+                             group_by(gv, treatment, type, short) %>% mutate(trans = n())      %>% ungroup() %>%
+                             group_by(gv, treatment, short)       %>% mutate(trans_all = n())  %>% ungroup() %>%
+                             unique()
+
+genes          <- reads %>% select(gv, treatment, type, short, gene)  %>% unique() %>%  select(-gene)   %>%        
+                             group_by(gv, treatment, type, short)     %>% mutate(gen     = n()) %>% ungroup() %>%
+                             unique()
+
+genes_all      <- reads %>% select(gv, treatment, short, gene)        %>% unique() %>%  select(-gene)   %>%              
+                             group_by(gv, treatment, short)           %>% mutate(gen_all = n()) %>% ungroup() %>%
+                             unique()
+
+genes          <- genes %>% left_join(genes_all)
+
+legend         <- full_join(transcripts, genes)
+
+t_legend       <- missing_oligo_legend(legend) %>% filter(type == "monoT" | type == "oligoT") %>% arrange(type, gv, short, treatment) %>%
+                             select(short, type, gv, treatment, trans, gen)  %>%
+                             rowwise() %>% mutate(Transcripts = paste(trans, " (", gen, ")", sep="")) %>% select(-trans, -gen)  %>%
+                             spread(type, Transcripts) %>% arrange(desc(short), desc(gv), treatment)
+show(t_legend)
+
+all_legend     <- legend %>% select(short, gv, treatment, trans_all, gen_all) %>% unique() %>% mutate(Total = paste(trans_all, " (", gen_all, ")", sep="")) %>% 
+                             select(-trans_all, -gen_all) 
+
+all_legend         <- t_legend %>% left_join(all_legend)
+
+show(all_legend )
+```
+
+Save figure
+```{r, message=FALSE, warning=FALSE}
+pdf(file = "plots/final_figures/ED_figure_7_a.pdf")
+grid.table(all_legend ) 
+dev.off()
+```
+
+Provide statistics
+```{r, message=FALSE, warning=FALSE}
+reads <- table %>% filter(cell == "gv")
+
+transcripts     <- reads %>% select(  gv, treatment, type, short) %>% 
+                             group_by(gv, treatment, type, short) %>% mutate(trans = n())      %>% ungroup() %>%
+                             group_by(gv, treatment, short)       %>% mutate(trans_all = n())  %>% ungroup() %>%
+                             unique()
+
+genes          <- reads %>% select(gv, treatment, type, short, gene)  %>% unique() %>%  select(-gene)   %>%        
+                             group_by(gv, treatment, type, short)     %>% mutate(gen     = n()) %>% ungroup() %>%
+                             unique()
+
+genes_all      <- reads %>% select(gv, treatment, short, gene)        %>% unique() %>%  select(-gene)   %>%              
+                             group_by(gv, treatment, short)           %>% mutate(gen_all = n()) %>% ungroup() %>%
+                             unique()
+
+genes          <- genes %>% left_join(genes_all)
+
+show(legend)
+
+legend_oligo   <- missing_oligo_legend(legend) %>% filter(type == "monoT" | type == "oligoT") %>% arrange(type, gv, short, treatment) %>%
+                             select(short, type, gv, treatment, trans, trans_all)  %>% arrange(desc(short), desc(gv), treatment) %>% 
+                             spread(type, trans) %>% select(-monoT) %>% unite(all_oligo, trans_all, oligoT) %>% spread(treatment, all_oligo) %>%
+                             separate(ctrl, c("ctrl_all", "ctrl_oligo"), convert = TRUE) %>% separate(dcko, c("dcko_all", "dcko_oligo"), convert = TRUE) %>%
+                             rowwise() %>% mutate(pval = do_chi(ctrl_oligo, dcko_oligo, ctrl_all, dcko_all)) 
+
+show(legend_oligo)
+
+legend_mono   <- missing_oligo_legend(legend) %>% filter(type == "monoT" | type == "oligoT") %>% arrange(type, gv, short, treatment) %>%
+                             select(short, type, gv, treatment, trans, trans_all)  %>% arrange(desc(short), desc(gv), treatment) %>% 
+                             spread(type, trans) %>% select(-oligoT) %>% unite(all_oligo, trans_all, monoT) %>% spread(treatment, all_oligo) %>%
+                             separate(ctrl, c("ctrl_all", "ctrl_mono"), convert = TRUE) %>% separate(dcko, c("dcko_all", "dcko_mono"), convert = TRUE) %>%
+                             rowwise() %>% mutate(pval = do_chi(ctrl_mono, dcko_mono, ctrl_all, dcko_all)) 
+
+show(legend_mono)
+```
+
+```{r}
+
+```
+
+

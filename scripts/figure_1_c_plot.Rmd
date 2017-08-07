@@ -1,0 +1,78 @@
+---
+title: "Plot Fig. 1c"
+author: "Marcos Morgan"
+output: html_document
+---
+
+Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(extrafont)                               
+```
+
+Clean the environment
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls()[!ls() %in% c("table")])
+```
+
+Set working directory
+```{r setup}
+opts_knit$set(root.dir = "../")
+```
+
+Load view
+```{r}
+view <- read.csv("views/final_figures/figure_1_c.csv", stringsAsFactors=FALSE)
+```
+
+Select to plot the frequency of uridylation of ctrl samples
+```{r}
+plotting      <- subset(view, treatment == "ctrl" & type_short == "T")[,c("cell", "sample", "freq")] 
+plotting$cell <- factor(plotting$cell, levels = c("liver","bm","mefs","escs", "gv"))
+colors        <- c(gray(c(0.2,0.3,0.4,0.6)), "red")
+topValue      <- 2.5
+thesize       <- 0.468
+```
+
+Generate plot
+```{r}
+
+plot <- ggplot(plotting, aes(x=cell, y=freq, fill=cell)) +
+          geom_dotplot(binaxis = "y", stackdir = "center", position=position_dodge(width=0.9)) +
+          stat_summary_bin(aes(y = freq, colors = "black"), fun.y = "mean", geom = "bar", width = 0.2,  binwidth = 0.02*topValue, position = position_dodge(width=0.9)) +
+          stat_summary(fun.y = mean, fun.ymin = min, fun.ymax = max, position=position_dodge(width=0.9), color = "black", size = 0.5, shape= ".") +
+    
+          scale_y_continuous(breaks=seq(0,topValue, 0.5), expand = c(0, 0)) +
+          scale_x_discrete(expand = c(0.05, 0.05)) +
+          coord_cartesian(ylim = c(0, topValue)) +
+          scale_fill_manual(values=colors) +
+    
+          ylab("% of transcripts uridylated") + 
+    
+          theme_classic() + 
+          theme(strip.background = element_blank(), text=element_text(family="Arial", size=8), plot.margin=unit(c(0.15,0.15,0.15,0.15), "cm"),
+            legend.position = "none",
+            axis.line       = element_line(size = thesize),
+            axis.title.x    = element_blank(), 
+            axis.ticks.x    = element_blank(),  
+            axis.ticks.y    = element_line(size = thesize),
+            axis.line.y     = element_line(size = thesize),
+            axis.line.x     = element_line(size = thesize))  
+
+plot  
+```
+
+Saving the plot
+```{r}
+ggsave("plots/final_figures/figure_1_c.pdf", plot, width=53, height=65, units = "mm", useDingbats=FALSE)
+```
+
+```{r}
+
+```
+
+
+
+
